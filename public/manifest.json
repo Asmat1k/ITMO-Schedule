@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "ITMO Schedule → Google Calendar",
+  "version": "1.0.0",
+  "description": "Экспорт расписания ИТМО в файл .ics для импорта в Google Calendar.",
+  "content_scripts": [
+    {
+      "matches": ["https://my.itmo.ru/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

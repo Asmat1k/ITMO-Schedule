@@ -1,0 +1,16 @@
+{
+  "name": "itmo-schedule-export",
+  "version": "1.0.0",
+  "description": "Экспорт расписания ИТМО в .ics для импорта в Google Calendar",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit && vite build",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.5",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2"
+  }
+}
