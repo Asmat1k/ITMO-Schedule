@@ -62,7 +62,7 @@ async function onExport(btn: HTMLButtonElement): Promise<void> {
 
     if (occurrences.length === 0) {
       btn.textContent = "Занятия не найдены";
-    } else if (!(await showPreview(summarize(occurrences)))) {
+    } else if (!(await showPreview(summarize(occurrences, monthsScanned)))) {
       btn.textContent = "Экспорт отменён";
     } else {
       downloadIcs(buildIcs(occurrences));

@@ -17,5 +17,6 @@ export interface ScanResult {
 
 export interface PreviewSummary {
   lessonCount: number;
+  monthsScanned: number;
   subjects: { name: string; count: number }[];
 }

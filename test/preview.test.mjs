@@ -15,14 +15,13 @@ const occ = (name) => ({
   startTime: "10:00",
 });
 
-test("summarize counts lessons and groups subjects, sorted by name", () => {
-  const summary = summarize([
-    occ("Физика"),
-    occ("Алгебра"),
-    occ("Физика"),
-    occ("Физика"),
-  ]);
+test("summarize counts lessons, scanned months, and groups subjects by name", () => {
+  const summary = summarize(
+    [occ("Физика"), occ("Алгебра"), occ("Физика"), occ("Физика")],
+    5,
+  );
   assert.equal(summary.lessonCount, 4);
+  assert.equal(summary.monthsScanned, 5);
   assert.deepEqual(summary.subjects, [
     { name: "Алгебра", count: 1 },
     { name: "Физика", count: 3 },
@@ -30,13 +29,18 @@ test("summarize counts lessons and groups subjects, sorted by name", () => {
 });
 
 test("summarize on an empty list reports nothing", () => {
-  assert.deepEqual(summarize([]), { lessonCount: 0, subjects: [] });
+  assert.deepEqual(summarize([], 1), {
+    lessonCount: 0,
+    monthsScanned: 1,
+    subjects: [],
+  });
 });
 
-test("showPreview renders the count headline and a per-subject list", () => {
+test("showPreview renders the headline, scanned months, and a per-subject list", () => {
   installDom();
   showPreview({
     lessonCount: 4,
+    monthsScanned: 5,
     subjects: [
       { name: "Алгебра", count: 1 },
       { name: "Физика", count: 3 },
@@ -45,6 +49,7 @@ test("showPreview renders the count headline and a per-subject list", () => {
   const overlay = previewOverlay();
   assert.ok(overlay);
   assert.match(overlay.textContent, /Нашёл 4 занятий, 2 предметов/);
+  assert.match(overlay.textContent, /Просканировано: 5 мес\./);
   const items = overlay.querySelectorAll("li");
   assert.equal(items.length, 2);
   assert.match(items[0].textContent, /Алгебра/);
@@ -53,7 +58,11 @@ test("showPreview renders the count headline and a per-subject list", () => {
 
 test("confirming resolves true and removes the modal", async () => {
   installDom();
-  const p = showPreview({ lessonCount: 1, subjects: [{ name: "X", count: 1 }] });
+  const p = showPreview({
+    lessonCount: 1,
+    monthsScanned: 1,
+    subjects: [{ name: "X", count: 1 }],
+  });
   clickPreviewButton("Скачать .ics");
   assert.equal(await p, true);
   assert.equal(previewOverlay(), null);
@@ -61,7 +70,11 @@ test("confirming resolves true and removes the modal", async () => {
 
 test("cancelling resolves false and removes the modal", async () => {
   installDom();
-  const p = showPreview({ lessonCount: 1, subjects: [{ name: "X", count: 1 }] });
+  const p = showPreview({
+    lessonCount: 1,
+    monthsScanned: 1,
+    subjects: [{ name: "X", count: 1 }],
+  });
   clickPreviewButton("Отмена");
   assert.equal(await p, false);
   assert.equal(previewOverlay(), null);

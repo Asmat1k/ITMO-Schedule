@@ -2,7 +2,10 @@ import type { LessonOccurrence, PreviewSummary } from "./types";
 
 const OVERLAY_ID = "itmo-ics-preview-overlay";
 
-export function summarize(occurrences: LessonOccurrence[]): PreviewSummary {
+export function summarize(
+  occurrences: LessonOccurrence[],
+  monthsScanned: number,
+): PreviewSummary {
   const counts = new Map<string, number>();
   for (const o of occurrences) {
     counts.set(o.name, (counts.get(o.name) ?? 0) + 1);
@@ -10,7 +13,7 @@ export function summarize(occurrences: LessonOccurrence[]): PreviewSummary {
   const subjects = [...counts.entries()]
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => a.name.localeCompare(b.name, "ru"));
-  return { lessonCount: occurrences.length, subjects };
+  return { lessonCount: occurrences.length, monthsScanned, subjects };
 }
 
 export function showPreview(summary: PreviewSummary): Promise<boolean> {
@@ -48,6 +51,10 @@ export function showPreview(summary: PreviewSummary): Promise<boolean> {
     const title = document.createElement("div");
     title.textContent = `Нашёл ${summary.lessonCount} занятий, ${summary.subjects.length} предметов`;
     Object.assign(title.style, { fontWeight: "600", fontSize: "16px" });
+
+    const meta = document.createElement("div");
+    meta.textContent = `Просканировано: ${summary.monthsScanned} мес.`;
+    Object.assign(meta.style, { color: "#888", fontSize: "13px" });
 
     const list = document.createElement("ul");
     Object.assign(list.style, {
@@ -103,7 +110,7 @@ export function showPreview(summary: PreviewSummary): Promise<boolean> {
     });
 
     footer.append(cancelBtn, okBtn);
-    card.append(title, list, footer);
+    card.append(title, meta, list, footer);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
   });

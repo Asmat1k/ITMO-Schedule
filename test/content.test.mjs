@@ -186,6 +186,7 @@ test("clicking export scans the schedule and downloads a valid .ics", async () =
   await waitFor(() => previewOverlay());
   assert.ok(previewOverlay(), "a preview modal appeared after scanning");
   assert.match(previewOverlay().textContent, /Нашёл 2 занятий, 2 предметов/);
+  assert.match(previewOverlay().textContent, /Просканировано: 3 мес\./);
   assert.equal(downloaded, null, "nothing downloads before confirming");
 
   clickPreviewButton("Скачать .ics");
