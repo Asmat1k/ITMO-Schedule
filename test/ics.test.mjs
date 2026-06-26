@@ -1,16 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { transform } from "esbuild";
+import { loadBundle } from "./helpers.mjs";
 
-// ics.ts is a single self-contained module (only a type-only import, erased by
-// esbuild). Transpile it in-memory and load it, so the test exercises the real
-// source without a separate build step.
-const ts = readFileSync(new URL("../src/ics.ts", import.meta.url), "utf8");
-const { code } = await transform(ts, { loader: "ts", format: "esm" });
-const { buildIcs } = await import(
-  "data:text/javascript;base64," + Buffer.from(code).toString("base64")
-);
+// Bundle ics.ts (and its ./utils import) in-memory and load it, so the test
+// exercises the real source without a separate build step.
+const { buildIcs } = await loadBundle("../src/ics.ts");
 
 const occ = (dateStr, name, time) => ({
   date: new Date(dateStr + "T00:00:00"),

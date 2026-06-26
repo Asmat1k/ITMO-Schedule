@@ -1,4 +1,5 @@
 import type { LessonOccurrence, ScanResult } from "./types";
+import { sleep } from "./utils";
 
 function findButtonByText(text: string): HTMLElement | null {
   const buttons = document.querySelectorAll<HTMLElement>("button.btn-schedule");
@@ -16,8 +17,6 @@ function nextMonthButton(): HTMLElement | null {
 function datesLabel(): string {
   return document.getElementById("dates")?.textContent?.trim() ?? "";
 }
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function waitForMonthChange(prev: string, timeout = 3000): Promise<boolean> {
   const step = 100;
