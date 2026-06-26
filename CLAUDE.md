@@ -2,6 +2,71 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## What this is
+
+A Chrome extension (Manifest V3) that scrapes the schedule page in the ITMO
+student portal (`my.itmo.ru`) and exports it as an `.ics` file for import into
+Google Calendar. There is no backend and no API — everything runs as a single
+content script that reads the rendered DOM. UI strings are in Russian; see
+[README.md](README.md) for end-user instructions.
+
+## Commands
+
+```bash
+npm install        # first time only
+npm run build      # tsc --noEmit (type-check) + vite build → dist/
+npm test           # node --test, runs all *.test.mjs in test/
+node --test test/ics.test.mjs   # run a single test file
+```
+
+`npm run build` produces `dist/content.js` (bundled IIFE) and copies
+`public/manifest.json` + assets. Load `dist/` (not the repo root) via
+`chrome://extensions` → Developer mode → Load unpacked.
+
+## Architecture
+
+Three source modules in `src/`, chained content-script → scanner → ics:
+
+- **[src/content.ts](src/content.ts)** — entry point declared in the manifest.
+  Injects the "Экспорт в Google Calendar" button next to the calendar's
+  Week/Month toggle, re-adding it every 1s via `setInterval(ensureButton)`
+  because the SPA re-renders. Disabled in Week view (export only works in Month
+  view). On click, drives `scanSemester`, then triggers a Blob download of the
+  built `.ics`. `logDiagnostics` dumps DOM selector presence to the console on
+  failure — the scraper depends on ITMO's markup, so this is the first place to
+  look when export breaks.
+
+- **[src/scanner.ts](src/scanner.ts)** — `scanSemester` walks the calendar
+  forward month by month: clicks "Сегодня" to reset, scrapes lessons from the
+  DOM (`[id^="lesson-"]` cells, skipping greyed-out adjacent-month days via the
+  `text-gray-40` class), clicks the next-month arrow, and waits for the `#dates`
+  label to change (`waitForMonthChange`). Stops at the first empty month or
+  `maxMonths` (10). Filters to occurrences from today onward.
+
+- **[src/ics.ts](src/ics.ts)** — pure functions, no DOM. `buildIcs` groups
+  occurrences into series by `(name, weekday, startTime)` and emits one VEVENT
+  per series. A uniform 7- or 14-day gap becomes an `RRULE` (weekly /
+  bi-weekly); anything irregular falls back to explicit `RDATE`s. Handles
+  RFC 5545 details: `Europe/Moscow` VTIMEZONE, 75-byte UTF-8-safe line folding,
+  text escaping, and stable FNV-hash UIDs.
+
+### Key constraints from the data source
+
+The ITMO DOM exposes only **subject name and start time** — no instructor,
+room, or end time. Lesson duration is therefore hardcoded as
+`LESSON_MINUTES = 90` in [src/ics.ts](src/ics.ts). Moscow is treated as a fixed
++03:00 offset (no DST). When the scraper breaks, it is almost always because
+ITMO changed a class name or DOM structure that `scanner.ts`/`content.ts`
+query — update the selectors there.
+
+## Testing notes
+
+Tests are plain `.mjs` using `node:test`. They transpile/bundle the TS source
+in-memory with esbuild (no separate build step) and run against a `jsdom` DOM.
+`FixedDate` in [test/helpers.mjs](test/helpers.mjs) pins "now" to
+2026-09-15 so date-dependent output is deterministic; `scanner`/`content` tests
+build fake ITMO calendar markup to exercise scraping without the live site.
+
 ## Behavioral Guidelines
 
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
