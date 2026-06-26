@@ -1,5 +1,6 @@
 import { buildIcs } from "./ics";
 import { scanSemester } from "./scanner";
+import { showPreview, summarize } from "./preview";
 
 const BUTTON_ID = "itmo-ics-export-btn";
 const EXPORT_LABEL = "Экспорт в Google Calendar";
@@ -61,6 +62,8 @@ async function onExport(btn: HTMLButtonElement): Promise<void> {
 
     if (occurrences.length === 0) {
       btn.textContent = "Занятия не найдены";
+    } else if (!(await showPreview(summarize(occurrences)))) {
+      btn.textContent = "Экспорт отменён";
     } else {
       downloadIcs(buildIcs(occurrences));
       btn.textContent = `Готово: ${occurrences.length} занятий (${monthsScanned} мес.)`;

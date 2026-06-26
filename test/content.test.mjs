@@ -1,6 +1,13 @@
 import { test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { loadBundle, installDom, FixedDate } from "./helpers.mjs";
+import {
+  loadBundle,
+  installDom,
+  FixedDate,
+  previewOverlay,
+  clickPreviewButton,
+  waitFor,
+} from "./helpers.mjs";
 
 const RealDate = globalThis.Date;
 const realSetInterval = globalThis.setInterval;
@@ -176,15 +183,54 @@ test("clicking export scans the schedule and downloads a valid .ics", async () =
   ensureButton();
   exportBtn().click();
 
-  for (let i = 0; i < 100 && downloaded === null; i++) {
-    await new Promise((r) => realSetTimeout(r, 50));
-  }
+  await waitFor(() => previewOverlay());
+  assert.ok(previewOverlay(), "a preview modal appeared after scanning");
+  assert.match(previewOverlay().textContent, /Нашёл 2 занятий, 2 предметов/);
+  assert.equal(downloaded, null, "nothing downloads before confirming");
+
+  clickPreviewButton("Скачать .ics");
+
+  await waitFor(() => downloaded !== null);
 
   assert.ok(downloaded, "an .ics file was produced");
   assert.match(downloaded, /BEGIN:VCALENDAR/);
   assert.match(downloaded, /SUMMARY:Базы данных/);
   assert.match(downloaded, /SUMMARY:Сети/);
   assert.equal((downloaded.match(/BEGIN:VEVENT/g) || []).length, 2);
+  assert.equal(previewOverlay(), null, "modal closes after confirming");
+});
+
+test("cancelling the preview aborts the export without downloading", async () => {
+  globalThis.Date = FixedDate;
+  recordTimers();
+
+  let downloaded = null;
+  globalThis.Blob = class {
+    constructor(parts) {
+      this.parts = parts;
+    }
+  };
+  globalThis.URL = {
+    createObjectURL: (blob) => {
+      downloaded = blob.parts.join("");
+      return "blob:fake";
+    },
+    revokeObjectURL: () => {},
+  };
+
+  setupCalendar([[{ day: 16, name: "Базы данных", time: "18:50" }], []]);
+
+  ensureButton();
+  exportBtn().click();
+
+  await waitFor(() => previewOverlay());
+  clickPreviewButton("Отмена");
+
+  await waitFor(() => exportBtn().textContent === "Экспорт отменён");
+
+  assert.equal(downloaded, null, "no file is produced on cancel");
+  assert.equal(previewOverlay(), null, "modal closes on cancel");
+  assert.equal(exportBtn().textContent, "Экспорт отменён");
 });
 
 test("on failure it logs DOM diagnostics to the console", async () => {
@@ -213,9 +259,10 @@ test("on failure it logs DOM diagnostics to the console", async () => {
     ensureButton();
     exportBtn().click();
 
-    for (let i = 0; i < 100 && exportBtn().textContent !== "Ошибка экспорта"; i++) {
-      await new Promise((r) => realSetTimeout(r, 50));
-    }
+    await waitFor(() => previewOverlay());
+    clickPreviewButton("Скачать .ics");
+
+    await waitFor(() => exportBtn().textContent === "Ошибка экспорта");
 
     assert.equal(exportBtn().textContent, "Ошибка экспорта");
     assert.ok(

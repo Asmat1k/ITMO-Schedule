@@ -14,3 +14,8 @@ export interface ScanResult {
   occurrences: LessonOccurrence[];
   monthsScanned: number;
 }
+
+export interface PreviewSummary {
+  lessonCount: number;
+  subjects: { name: string; count: number }[];
+}

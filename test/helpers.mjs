@@ -1,6 +1,25 @@
 import { build } from "esbuild";
 import { JSDOM } from "jsdom";
 
+const realSetTimeout = globalThis.setTimeout;
+
+export const PREVIEW_OVERLAY_ID = "itmo-ics-preview-overlay";
+
+export const previewOverlay = () => document.getElementById(PREVIEW_OVERLAY_ID);
+
+export function clickPreviewButton(label) {
+  [...previewOverlay().querySelectorAll("button")]
+    .find((b) => b.textContent === label)
+    .click();
+}
+
+export async function waitFor(predicate, { timeout = 5000, step = 50 } = {}) {
+  for (let waited = 0; waited < timeout && !predicate(); waited += step) {
+    await new Promise((r) => realSetTimeout(r, step));
+  }
+  return predicate();
+}
+
 export async function loadBundle(relPath) {
   const entry = new URL(relPath, import.meta.url).pathname;
   const result = await build({
