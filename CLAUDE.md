@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A Chrome extension (Manifest V3) that scrapes the schedule page in the ITMO
-student portal (`my.itmo.ru`) and exports it as an `.ics` file for import into
-Google Calendar. There is no backend and no API — everything runs as a single
-content script that reads the rendered DOM. UI strings are in Russian; see
-[README.md](README.md) for end-user instructions.
+A Chrome extension (Manifest V3), named **ISP (Itmo Schedule Parser)**, that
+scrapes the schedule page in the ITMO student portal (`my.itmo.ru`) and exports
+it as an `.ics` file for import into Google Calendar. There is no backend and no
+API — everything runs as one content script that reads the rendered DOM. UI
+strings are in Russian; see [README.md](README.md) for end-user instructions.
 
 ## Commands
 
@@ -19,22 +19,26 @@ npm test           # node --test, runs all *.test.mjs in test/
 node --test test/ics.test.mjs   # run a single test file
 ```
 
-`npm run build` produces `dist/content.js` (bundled IIFE) and copies
-`public/manifest.json` + assets. Load `dist/` (not the repo root) via
-`chrome://extensions` → Developer mode → Load unpacked.
+`npm run build` bundles `src/content.ts` into `dist/content.js` (a single IIFE)
+and copies everything in `public/` — `manifest.json` and `icons/` — to `dist/`
+as-is. Load `dist/` (not the repo root) via `chrome://extensions` → Developer
+mode → Load unpacked. The version lives in both `package.json` and
+`public/manifest.json` and is kept in sync by hand.
 
 ## Architecture
 
-Three source modules in `src/`, chained content-script → scanner → ics:
+Content script `src/content.ts` orchestrates the rest; the flow is
+scan → preview → build. Modules in `src/` (`types.ts` holds shared interfaces):
 
 - **[src/content.ts](src/content.ts)** — entry point declared in the manifest.
   Injects the "Экспорт в Google Calendar" button next to the calendar's
   Week/Month toggle, re-adding it every 1s via `setInterval(ensureButton)`
   because the SPA re-renders. Disabled in Week view (export only works in Month
-  view). On click, drives `scanSemester`, then triggers a Blob download of the
-  built `.ics`. `logDiagnostics` dumps DOM selector presence to the console on
-  failure — the scraper depends on ITMO's markup, so this is the first place to
-  look when export breaks.
+  view). On click: `scanSemester` → `showPreview(summarize(...))` → and only if
+  the user confirms, builds the `.ics` and triggers a Blob download.
+  `logDiagnostics` dumps DOM selector presence to the console on failure — the
+  scraper depends on ITMO's markup, so this is the first place to look when
+  export breaks.
 
 - **[src/scanner.ts](src/scanner.ts)** — `scanSemester` walks the calendar
   forward month by month: clicks "Сегодня" to reset, scrapes lessons from the
@@ -43,12 +47,22 @@ Three source modules in `src/`, chained content-script → scanner → ics:
   label to change (`waitForMonthChange`). Stops at the first empty month or
   `maxMonths` (10). Filters to occurrences from today onward.
 
+- **[src/preview.ts](src/preview.ts)** — `summarize` (pure: counts lessons,
+  carries `monthsScanned`, groups occurrences by subject) feeds `showPreview`,
+  which renders a confirmation modal (counts + scanned months + subject list)
+  and returns a `Promise<boolean>` — `true` on "Скачать .ics", `false` on
+  "Отмена" or backdrop click. Nothing downloads until this resolves true.
+
 - **[src/ics.ts](src/ics.ts)** — pure functions, no DOM. `buildIcs` groups
   occurrences into series by `(name, weekday, startTime)` and emits one VEVENT
   per series. A uniform 7- or 14-day gap becomes an `RRULE` (weekly /
   bi-weekly); anything irregular falls back to explicit `RDATE`s. Handles
   RFC 5545 details: `Europe/Moscow` VTIMEZONE, 75-byte UTF-8-safe line folding,
-  text escaping, and stable FNV-hash UIDs.
+  text escaping, and stable UIDs (via `hashKey`).
+
+- **[src/utils.ts](src/utils.ts)** — generic, module-agnostic helpers only:
+  `sleep` and `hashKey` (FNV-1a). Add shared, non-domain utilities here rather
+  than re-declaring them per module.
 
 ### Key constraints from the data source
 
@@ -61,11 +75,15 @@ query — update the selectors there.
 
 ## Testing notes
 
-Tests are plain `.mjs` using `node:test`. They transpile/bundle the TS source
-in-memory with esbuild (no separate build step) and run against a `jsdom` DOM.
-`FixedDate` in [test/helpers.mjs](test/helpers.mjs) pins "now" to
-2026-09-15 so date-dependent output is deterministic; `scanner`/`content` tests
-build fake ITMO calendar markup to exercise scraping without the live site.
+Tests are plain `.mjs` using `node:test`. They bundle the TS source in-memory
+with esbuild via `loadBundle` in [test/helpers.mjs](test/helpers.mjs) (no
+separate build step) and run against a `jsdom` DOM — bundling (not single-file
+transpile) is required because the modules import each other (e.g. `ics.ts`
+imports `utils.ts`). `helpers.mjs` is the shared toolbox: `installDom`,
+`FixedDate` (pins "now" to 2026-09-15 for deterministic dates), `waitFor`, and
+the preview-modal helpers `previewOverlay` / `clickPreviewButton`. The
+`scanner`/`content` tests build fake ITMO calendar markup to exercise scraping
+without the live site. Put reusable test helpers in `helpers.mjs`, not inline.
 
 ## Behavioral Guidelines
 
