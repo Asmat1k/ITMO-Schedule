@@ -1,6 +1,6 @@
 {
   "name": "itmo-schedule-export",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Экспорт расписания ИТМО в .ics для импорта в Google Calendar",
   "type": "module",
   "scripts": {
